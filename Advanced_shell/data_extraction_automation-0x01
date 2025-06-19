@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Check if the JSON file from Task 0 exists
+if [ ! -f pokemon_data.json ]; then
+    echo "Error: pokemon_data.json file not found."
+    exit 1
+fi
+
+# Extract the required data using jq and format it with awk/sed
+jq -r '.name + "," + (.types[0].type.name | ascii_upcase[0:1] + ascii_downcase[1:]) + "," + (.weight | tostring) + "," + (.height | tostring)' pokemon_data.json | 
+awk -F',' '{
+    # Convert weight from hectograms to kg
+    weight = $3 / 10;
+    # Convert height from decimeters to m
+    height = $4 / 10;
+    
+    # Format and print the output
+    printf "%s is of type %s, weighs %gkg, and is %.1fm tall.\n", 
+        $1, $2, weight, height;
+}'
