@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to fetch data for multiple Pokémon and save to separate files
+# Script to fetch data for multiple Pokémon with retry logic and error handling
 
 # Create a directory to store the Pokémon data if it doesn't exist
 mkdir -p pokemon_data
@@ -11,16 +11,52 @@ pokemon_list=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 # Function to fetch data for a specific Pokémon
 fetch_pokemon_data() {
     local pokemon_name="$1"
+    local max_retries=3
+    local retry_count=0
+    local success=false
+    
     echo "Fetching data for ${pokemon_name}..."
     
     # API URL for Pokémon data
     local api_url="https://pokeapi.co/api/v2/pokemon/${pokemon_name}"
     
-    # Fetch the data and save it to a file
-    if curl -s "${api_url}" > "pokemon_data/${pokemon_name}.json"; then
-        echo "Saved data to pokemon_data/${pokemon_name}.json ✅"
-    else
-        echo "Failed to fetch data for ${pokemon_name} ❌"
+    # Try the request up to max_retries times
+    while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
+        # Increment retry counter
+        ((retry_count++))
+        
+        # Show retry message if this is not the first attempt
+        if [ $retry_count -gt 1 ]; then
+            echo "Retry attempt $retry_count of $max_retries for ${pokemon_name}..."
+        fi
+        
+        # Make the request with proper error handling
+        response=$(curl -s -w "%{http_code}" "${api_url}" -o "pokemon_data/${pokemon_name}.json.tmp")
+        
+        # Check HTTP status code
+        if [ "$response" -eq 200 ]; then
+            # Success - move the tmp file to the final location
+            mv "pokemon_data/${pokemon_name}.json.tmp" "pokemon_data/${pokemon_name}.json"
+            echo "Saved data to pokemon_data/${pokemon_name}.json ✅"
+            success=true
+        else
+            # Request failed
+            rm -f "pokemon_data/${pokemon_name}.json.tmp"
+            echo "Attempt $retry_count failed with status code: $response"
+            
+            if [ $retry_count -lt $max_retries ]; then
+                # Exponential backoff: 1s, 2s, 4s, etc.
+                sleep_time=$((2 ** (retry_count - 1)))
+                echo "Waiting ${sleep_time}s before retrying..."
+                sleep $sleep_time
+            fi
+        fi
+    done
+    
+    # Log final error if all retries failed
+    if [ "$success" = false ]; then
+        echo "ERROR: Failed to fetch data for ${pokemon_name} after ${max_retries} attempts ❌" >&2
+        echo "${pokemon_name}" >> pokemon_data/failed_requests.log
     fi
 }
 
@@ -28,8 +64,15 @@ fetch_pokemon_data() {
 for pokemon in "${pokemon_list[@]}"; do
     fetch_pokemon_data "${pokemon}"
     
-    # Add a delay to avoid rate-limiting (1 second)
+    # Add a small delay between different Pokémon requests to avoid rate-limiting
     sleep 1
 done
+
+# Report summary
+if [ -f pokemon_data/failed_requests.log ]; then
+    echo -e "\nSummary: Failed to fetch data for $(wc -l < pokemon_data/failed_requests.log) Pokémon."
+else
+    echo -e "\nSummary: Successfully fetched data for all Pokémon."
+fi
 
 exit 0
