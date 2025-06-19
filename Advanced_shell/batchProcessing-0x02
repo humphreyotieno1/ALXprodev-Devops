@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Script to fetch data for multiple Pokémon and save to separate files
+
+# Create a directory to store the Pokémon data if it doesn't exist
+mkdir -p pokemon_data
+
+# List of Pokémon to fetch
+pokemon_list=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+
+# Function to fetch data for a specific Pokémon
+fetch_pokemon_data() {
+    local pokemon_name="$1"
+    echo "Fetching data for ${pokemon_name}..."
+    
+    # API URL for Pokémon data
+    local api_url="https://pokeapi.co/api/v2/pokemon/${pokemon_name}"
+    
+    # Fetch the data and save it to a file
+    if curl -s "${api_url}" > "pokemon_data/${pokemon_name}.json"; then
+        echo "Saved data to pokemon_data/${pokemon_name}.json ✅"
+    else
+        echo "Failed to fetch data for ${pokemon_name} ❌"
+    fi
+}
+
+# Loop through each Pokémon and fetch its data
+for pokemon in "${pokemon_list[@]}"; do
+    fetch_pokemon_data "${pokemon}"
+    
+    # Add a delay to avoid rate-limiting (1 second)
+    sleep 1
+done
+
+exit 0
