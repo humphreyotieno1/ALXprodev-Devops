@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Array of Pokémon to fetch
+POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+PIDS=()
+
+# Function to fetch Pokémon data
+fetch_pokemon_data() {
+    local pokemon=$1
+    local output_file="pokemon_${pokemon}.json"
+    
+    echo "Fetching data for ${pokemon}..."
+    curl -s "https://pokeapi.co/api/v2/pokemon/${pokemon}" > "${output_file}"
+    echo "Data for ${pokemon} has been saved to ${output_file}"
+}
+
+echo "Starting parallel Pokémon data retrieval..."
+
+# Launch fetch operations in parallel
+for pokemon in "${POKEMONS[@]}"; do
+    fetch_pokemon_data "${pokemon}" &
+    PIDS+=($!)  # Store the process ID
+    echo "Started background process for ${pokemon} with PID ${PIDS[-1]}"
+done
+
+echo "All fetch operations have been started in background."
+echo "Waiting for all processes to complete..."
+
+# Wait for all background processes to complete
+for pid in "${PIDS[@]}"; do
+    wait $pid
+    echo "Process with PID $pid has completed."
+done
+
+echo "All data retrieval processes have completed!"
+echo "Summary of retrieved Pokémon data:"
+
+# Display a summary of the fetched data
+for pokemon in "${POKEMONS[@]}"; do
+    file="pokemon_${pokemon}.json"
+    if [[ -f "$file" && -s "$file" ]]; then
+        name=$(grep -o '"name":"[^"]*"' "$file" | head -1 | cut -d'"' -f4)
+        id=$(grep -o '"id":[0-9]*' "$file" | head -1 | cut -d':' -f2)
+        echo "- $pokemon (ID: $id, Name: $name) - Data successfully retrieved"
+    else
+        echo "- $pokemon - Failed to retrieve data"
+    fi
+done
