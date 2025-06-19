@@ -2,7 +2,6 @@
 
 # Array of Pokémon to fetch
 POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
-PIDS=()
 
 # Function to fetch Pokémon data
 fetch_pokemon_data() {
@@ -19,20 +18,19 @@ echo "Starting parallel Pokémon data retrieval..."
 # Launch fetch operations in parallel
 for pokemon in "${POKEMONS[@]}"; do
     fetch_pokemon_data "${pokemon}" &
-    PIDS+=($!)  # Store the process ID
-    echo "Started background process for ${pokemon} with PID ${PIDS[-1]}"
+    echo "Started background process for ${pokemon} with PID $!"
 done
 
 echo "All fetch operations have been started in background."
-echo "Waiting for all processes to complete..."
+echo "Current jobs running:"
+jobs -l  # List all jobs with PIDs
 
-# Wait for all background processes to complete
-for pid in "${PIDS[@]}"; do
-    wait $pid
-    echo "Process with PID $pid has completed."
-done
+echo "Waiting for all processes to complete..."
+wait # Wait for all background processes to finish
 
 echo "All data retrieval processes have completed!"
+jobs # Should show no jobs running
+
 echo "Summary of retrieved Pokémon data:"
 
 # Display a summary of the fetched data
