@@ -6,25 +6,15 @@ if [ ! -f pokemon_data.json ]; then
     exit 1
 fi
 
-# Extract and format the required data using jq and awk
-jq -r '
-    .name as $name |
-    .types[0].type.name as $type |
-    .weight as $weight |
-    .height as $height |
-    "\($name),\($type),\($weight),\($height)"
-' pokemon_data.json | awk -F',' '{
-    name = $1;
-
-    # Capitalize type (first letter uppercase, rest lowercase)
-    type = toupper(substr($2,1,1)) tolower(substr($2,2));
-
-    # Convert weight from hectograms to kilograms
+# Extract the required data using jq and format it with awk/sed
+jq -r '.name + "," + (.types[0].type.name | ascii_upcase[0:1] + ascii_downcase[1:]) + "," + (.weight | tostring) + "," + (.height | tostring)' pokemon_data.json | 
+awk -F',' '{
+    # Convert weight from hectograms to kg
     weight = $3 / 10;
-
-    # Convert height from decimeters to meters
+    # Convert height from decimeters to m
     height = $4 / 10;
-
-    # Print formatted output
-    printf "%s is of type %s, weighs %.0fkg, and is %.1fm tall.\n", name, type, weight, height;
+    
+    # Format and print the output
+    printf "%s is of type %s, weighs %gkg, and is %.1fm tall.\n", 
+        $1, $2, weight, height;
 }'
