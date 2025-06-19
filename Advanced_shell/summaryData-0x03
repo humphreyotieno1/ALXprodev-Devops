@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Define the output CSV file
+csv_file="pokemon_report.csv"
+json_dir="pokemon_data"  # Assuming the JSON files are in a directory called pokemon_data
+
+# Initialize CSV with headers
+echo "Name,Height (m),Weight (kg)" > $csv_file
+
+# Check if directory exists
+if [ ! -d "$json_dir" ]; then
+    echo "Error: Directory $json_dir not found. Please make sure JSON files are available."
+    exit 1
+fi
+
+# Process each JSON file in the directory
+for file in $json_dir/*.json; do
+    if [ -f "$file" ]; then
+        # Extract data using grep and sed
+        name=$(grep -o '"name":"[^"]*"' "$file" | sed 's/"name":"//;s/"//g')
+        height=$(grep -o '"height":[0-9]*' "$file" | sed 's/"height"://g')
+        weight=$(grep -o '"weight":[0-9]*' "$file" | sed 's/"weight"://g')
+        
+        # Convert height from decimeters to meters
+        height_m=$(awk "BEGIN {printf \"%.1f\", $height/10}")
+        
+        # Convert weight from hectograms to kilograms
+        weight_kg=$(awk "BEGIN {printf \"%.1f\", $weight/10}")
+        
+        # Append to CSV
+        echo "$name,$height_m,$weight_kg" >> $csv_file
+    fi
+done
+
+# Calculate averages using awk
+avg_stats=$(awk -F, 'NR>1 {height+=$2; weight+=$3; count++} 
+    END {
+        if(count>0) {
+            printf "Average Height: %.2f m\nAverage Weight: %.2f kg", 
+            height/count, weight/count
+        }
+    }' $csv_file)
+
+# Output report
+echo "CSV Report generated at: $csv_file"
+echo
+cat $csv_file
+echo
+echo "$avg_stats"
